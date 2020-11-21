@@ -1,14 +1,17 @@
 import edu.princeton.cs.algs4.RectHV;
 import edu.princeton.cs.algs4.Point2D;
 import edu.princeton.cs.algs4.SET;
-import edu.princeton.cs.algs4.RedBlackBST;
+
+import java.util.LinkedList;
+import java.util.List;
 
 public class PointSET {
     private final SET<Point2D> point2DSET = new SET<Point2D>();
-//    private final RedBlackBST<>
+
+    //    private final RedBlackBST<>
     // construct an empty set of points
     public PointSET() {
-        
+
     }
 
     // is the set empty?
@@ -23,11 +26,17 @@ public class PointSET {
 
     // add the point to the set (if it is not already in the set)
     public void insert(Point2D p) {
-        
+        if (p == null) {
+            throw new IllegalArgumentException();
+        }
+        point2DSET.add(p);
     }
 
     // does the set contain point p?
     public boolean contains(Point2D p) {
+        if (p == null) {
+            throw new IllegalArgumentException();
+        }
         return point2DSET.contains(p);
     }
 
@@ -37,13 +46,36 @@ public class PointSET {
     }
 
     // all points that are inside the rectangle (or on the boundary)
-//    public Iterable<Point2D> range(RectHV rect) {
-//
-//    }
+    public Iterable<Point2D> range(RectHV rect) {
+        if (rect == null) {
+            throw new IllegalArgumentException();
+        }
+        LinkedList<Point2D> pointsInRect = new LinkedList<Point2D>();
+        for (Point2D p : point2DSET) {
+            if (p.x() >= rect.xmin() && p.x() <= rect.xmax() && p.y() <= rect.ymax() && p.y() >= rect.ymin()) {
+                pointsInRect.add(p);
+            }
+        }
+        return pointsInRect;
+    }
 
     // a nearest neighbor in the set to point p; null if the set is empty
     public Point2D nearest(Point2D p) {
-        return p;
+        if (p == null) {
+            throw new IllegalArgumentException();
+        }
+        if (isEmpty()) {
+            return null;
+        }
+        Point2D temp = point2DSET.min();
+        double minRange = p.distanceTo(point2DSET.min());
+        for (Point2D cur : point2DSET) {
+            if (p.distanceTo(cur) < minRange) {
+                temp = p;
+                minRange = p.distanceTo(cur);
+            }
+        }
+        return temp;
     }
 
     // unit testing of the methods (optional)
