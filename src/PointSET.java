@@ -3,7 +3,6 @@ import edu.princeton.cs.algs4.Point2D;
 import edu.princeton.cs.algs4.SET;
 
 import java.util.LinkedList;
-import java.util.List;
 
 public class PointSET {
     private final SET<Point2D> point2DSET = new SET<Point2D>();
@@ -37,6 +36,7 @@ public class PointSET {
         if (p == null) {
             throw new IllegalArgumentException();
         }
+
         return point2DSET.contains(p);
     }
 
@@ -52,7 +52,7 @@ public class PointSET {
         }
         LinkedList<Point2D> pointsInRect = new LinkedList<Point2D>();
         for (Point2D p : point2DSET) {
-            if (p.x() >= rect.xmin() && p.x() <= rect.xmax() && p.y() <= rect.ymax() && p.y() >= rect.ymin()) {
+            if (rect.contains(p)) {
                 pointsInRect.add(p);
             }
         }
