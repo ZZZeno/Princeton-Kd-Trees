@@ -1,174 +1,233 @@
 import edu.princeton.cs.algs4.Point2D;
 import edu.princeton.cs.algs4.RectHV;
-import edu.princeton.cs.algs4.SET;
 import edu.princeton.cs.algs4.StdDraw;
 
-import java.util.LinkedList;
+import java.util.ArrayList;
 
 public class KdTree {
-    private final SET<Point2D> pointKdTree = new SET<Point2D>();
     private Node root;
     private int size;
 
-    private class Node {
-        private final Point2D point;
-        private boolean horizontal;
-        private RectHV rect;
-        private Node lower;   // left or bottom
-        private Node higher;  // right or top
+    private static class Node {
 
-        public Node(Point2D point, boolean parentRotation, RectHV rect) {
-            this.point = point;
-            this.horizontal = !parentRotation;
-            this.rect = rect;
+        private final Point2D p;
+        private Node left;
+        private Node right;
+        private final boolean rotation;
+        private final RectHV rect;
+
+        private final ArrayList<Point2D> same = new ArrayList<Point2D>();
+
+        public Node(Point2D p) {
+            this(p, true, 0, 1, 0, 1);
         }
 
-        public boolean lowerThan(Node p) {
-            return point.x() < p.point.x() || point.y() < p.point.y();
-        }
 
-        public boolean lowerThan(Point2D p) {
-            return point.x() < p.x() || point.y() < p.y();
+        public Node(Point2D p, boolean rotation, double xmin, double xmax, double ymin, double ymax) {
+            this.p = p;
+            this.rotation = rotation;
+            rect = new RectHV(xmin, ymin, xmax, ymax);
         }
-
     }
 
-    //    private final RedBlackBST<>
-    // construct an empty set of points
+    private Point2D currentNearest;
+    private double min;
+
     public KdTree() {
-        root = null;
-        size = 0;
+
     }
 
-    // is the set empty?
     public boolean isEmpty() {
         return size == 0;
     }
 
-    // number of points in the set
     public int size() {
         return size;
     }
 
-    // add the point to the set (if it is not already in the set)
-    public void insert(Point2D p) {
-        if (p == null) {
-            throw new IllegalArgumentException();
-        }
-        if (isEmpty()) {
-            root = new Node(p, true, new RectHV(0, 0, 1, 1));
-            size++;
-            return;
-        }
-        Node node = new Node(p, true, new RectHV(0, 0, 1, 1));
-        Node cur = root;
-        while (cur != null) {
-            node.horizontal = !cur.horizontal;
-            System.out.println(node.point);
-            if (!cur.lowerThan(p)) {
-                if (cur.lower == null) {
-                    cur.lower = node;
-                    if (!node.horizontal) {
-                        node.rect = new RectHV(cur.rect.xmin(), cur.rect.ymin(), cur.rect.xmax(), cur.point.y());
-                    } else {
-                        node.rect = new RectHV(cur.rect.xmin(), cur.rect.ymin(), cur.point.x(), cur.rect.ymax());
-                    }
-//                    if (node.point.x() < cur.point.x()) {  // right
-//                        node.rect = new RectHV(cur.point.x(), cur.rect.ymin(), cur.rect.xmax(), cur.rect.ymax());
-//                    } else {  // top
-//                        node.rect = new RectHV(cur.rect.xmin(), cur.point.y(), cur.rect.xmax(), cur.rect.ymax());
-//                    }
-                    cur = null;
-                } else {
-                    cur = cur.lower;
-                }
+    private int compare(Point2D p, Node n) {
+        if (n.rotation) {
+            if (Double.compare(p.x(), n.p.x()) == 0) {
+                return Double.compare(p.y(), n.p.y());
             } else {
-                if (cur.higher == null) {
-                    cur.higher = node;
-                    if (node.horizontal) {
-                        node.rect = new RectHV(cur.point.x(), cur.rect.ymin(), cur.rect.xmax(), cur.rect.ymax());
-                    } else {
-                        node.rect = new RectHV(cur.rect.xmin(), cur.point.y(), cur.rect.xmax(), cur.rect.ymax());
-                    }
-//                    if (node.point.x() < cur.point.x()) {  // left
-//                        node.rect = new RectHV(cur.rect.xmin(), cur.rect.ymin(), cur.point.x(), cur.rect.ymax());
-//                    } else {  // bottom
-//                        node.rect = new RectHV(cur.rect.xmin(), cur.rect.ymin(), cur.rect.xmax(), cur.point.y());
-//                    }
-                    cur = null;
-                } else {
-                    cur = cur.higher;
-                }
+                return Double.compare(p.x(), n.p.x());
+            }
+        } else {
+            if (Double.compare(p.y(), n.p.y()) == 0) {
+                return Double.compare(p.x(), n.p.x());
+            } else {
+                return Double.compare(p.y(), n.p.y());
             }
         }
-        size++;
     }
 
-    // does the set contain point p?
-    public boolean contains(Point2D p) {
-        if (p == null) {
-            throw new IllegalArgumentException();
-        }
-        Node cur = root;
-        while (cur != null) {
-            if (cur.point.equals(p)) {
-                return true;
-            }
-            if (cur.lowerThan(p)) {
-                cur = cur.lower;
+    private Node generateNode(Point2D p, Node parent) {
+        int cmp = compare(p, parent);
+        if (cmp < 0) {
+            if (parent.rotation) {
+                return new Node(p, !parent.rotation, parent.rect.xmin(), parent.p.x(), parent.rect.ymin(), parent.rect.ymax());
             } else {
-                cur = cur.higher;
+                return new Node(p, !parent.rotation, parent.rect.xmin(), parent.rect.xmax(), parent.rect.ymin(), parent.p.y());
+            }
+        } else {
+            if (parent.rotation) {
+                return new Node(p, !parent.rotation, parent.p.x(), parent.rect.xmax(), parent.rect.ymin(), parent.rect.ymax());
+
+            } else {
+                return new Node(p, !parent.rotation, parent.rect.xmin(), parent.rect.xmax(), parent.p.y(), parent.rect.ymax());
+
             }
         }
-        return false;
+    }
+
+    public void insert(Point2D p) {
+        checkOption(p);
+        if (root == null) {
+            size++;
+            root = new Node(p);
+        } else {
+            insert(p, root);
+        }
+    }
+
+    private void insert(Point2D p, Node node) {
+        int cmp = compare(p, node);
+        if (cmp < 0) {
+            if (node.left == null) {
+                size++;
+                node.left = generateNode(p, node);
+            } else {
+                insert(p, node.left);
+            }
+        } else if (cmp > 0) {
+            if (node.right == null) {
+                size++;
+                node.right = generateNode(p, node);
+            } else {
+                insert(p, node.right);
+            }
+        }
+    }
+
+
+    public boolean contains(Point2D p) {
+        checkOption(p);
+        if (root == null) {
+            return false;
+        } else {
+            return contains(p, root);
+        }
+    }
+
+    private boolean contains(Point2D p, Node node) {
+        if (node == null) {
+            return false;
+        } else if (p.equals(node.p)) {
+            return true;
+        } else {
+            if (compare(p, node) < 0) {
+                return contains(p, node.left);
+            } else {
+                return contains(p, node.right);
+            }
+        }
     }
 
     public void draw() {
+        StdDraw.clear();
         draw(root);
     }
 
-    // draw all points to standard draw
     private void draw(Node node) {
         if (node != null) {
             StdDraw.setPenColor(StdDraw.BLACK);
-            StdDraw.setPenRadius(0.01);
-            node.point.draw();
-            StdDraw.setPenRadius(0.005);
-            if (!node.horizontal) {
+            node.p.draw();
+            if (node.rotation) {
                 StdDraw.setPenColor(StdDraw.RED);
-                StdDraw.line(node.point.x(), node.rect.ymin(), node.point.x(), node.rect.ymax());
+                StdDraw.line(node.p.x(), node.rect.ymin(), node.p.x(), node.rect.ymax());
             } else {
                 StdDraw.setPenColor(StdDraw.BLUE);
-                StdDraw.line(node.rect.xmin(), node.point.y(), node.rect.xmax(), node.point.y());
+                StdDraw.line(node.rect.xmin(), node.p.y(), node.rect.xmax(), node.p.y());
             }
-            draw(node.lower);
-            draw(node.higher);
+            // 递归画
+            draw(node.left);
+            draw(node.right);
         }
     }
 
-    // all points that are inside the rectangle (or on the boundary)
     public Iterable<Point2D> range(RectHV rect) {
         if (rect == null) {
-            throw new IllegalArgumentException();
-        }
-        LinkedList<Point2D> pointsInRect = new LinkedList<Point2D>();
-
-        return pointsInRect;
-    }
-
-    // a nearest neighbor in the set to point p; null if the set is empty
-    public Point2D nearest(Point2D p) {
-        if (p == null) {
             throw new IllegalArgumentException();
         }
         if (isEmpty()) {
             return null;
         }
-
-        return null;
+        return new ArrayList<Point2D>(range(rect, root));
     }
 
-    // unit testing of the methods (optional)
+    private ArrayList<Point2D> range(RectHV rect, Node node) {
+        ArrayList<Point2D> list = new ArrayList<Point2D>();
+        // A subtree is searched only if it might contain a point contained in the query rectangle.
+        if (node != null && rect.intersects(node.rect)) {
+            list.addAll(range(rect, node.left));
+            list.addAll(range(rect, node.right));
+            if (rect.contains(node.p)) {
+                list.add(node.p);
+            }
+        }
+        return list;
+    }
+
+    private void checkOption(Point2D p) {
+        if (p == null) {
+            throw new IllegalArgumentException();
+        }
+    }
+
+    public Point2D nearest(Point2D p) {
+        checkOption(p);
+        if (isEmpty()) {
+            return null;
+        }
+        currentNearest = null;
+        min = Double.POSITIVE_INFINITY;
+        findNearest(p, root);
+        return currentNearest;
+    }
+
+    private void findNearest(Point2D p, Node node) {
+        if (node == null) {
+            return;
+        }
+        // The square of the Euclidean distance between the point {@code p} and the closest point on this rectangle; 0 if the point is contained in this rectangle
+        if (node.rect.distanceSquaredTo(p) <= min) {
+
+            double d = node.p.distanceSquaredTo(p);
+            if (d < min) {
+                min = d;
+                currentNearest = node.p;
+            }
+            if (node.left != null && node.left.rect.contains(p)) {
+                findNearest(p, node.left);
+                findNearest(p, node.right);
+            } else if (node.right != null && node.right.rect.contains(p)) {
+                findNearest(p, node.right);
+                findNearest(p, node.left);
+            } else {
+                double toLeft = node.left != null ? node.left.rect.distanceSquaredTo(p) : Double.POSITIVE_INFINITY;
+                double toRight = node.right != null ? node.right.rect.distanceSquaredTo(p) : Double.POSITIVE_INFINITY;
+                if (toLeft < toRight) {
+                    findNearest(p, node.left);
+                    findNearest(p, node.right);
+                } else {
+                    findNearest(p, node.right);
+                    findNearest(p, node.left);
+                }
+            }
+        }
+
+    }
+
     public static void main(String[] args) {
         KdTree kd;
         kd = new KdTree();
@@ -178,9 +237,5 @@ public class KdTree {
         kd.insert(new Point2D(0.4, 0.7));
         kd.insert(new Point2D(0.9, 0.6));
         kd.draw();
-//        Point2D temp = new Point2D(0.3, 0.5);
-//        StdDraw.setPenColor(StdDraw.RED);
-//        StdDraw.setPenRadius(0.01);
-//        temp.draw();
     }
 }
